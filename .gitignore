@@ -11,3 +11,4 @@ data/pcp/lh.aparc.csv/*
 data/pcp/lh.aparc.stats/*
 data/pcp/rh.aparc.csv/*
 data/pcp/rh.aparc.stats/*
+data/pcp/freesurfer_raw_data.tar
