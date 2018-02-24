@@ -1,11 +1,13 @@
-.Rproj
-.Rproj.user
+# RStudio project files
+*.Rproj
+.Rproj.user/*
 .Rhistory
 .RData
-.Ruserdata
-data/aseg.csv/
-data/aseg.stats.
-data/lh.aparc.csv/
-data/lh.aparc.stats/
-data/rh.aparc.csv/
-data/rh.aparc.stats/
+
+# directories with separate file for every patient
+data/aseg.csv/*
+data/aseg.stats/*
+data/lh.aparc.csv/*
+data/lh.aparc.stats/*
+data/rh.aparc.csv/*
+data/rh.aparc.stats/*
