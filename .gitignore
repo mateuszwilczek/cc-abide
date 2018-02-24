@@ -5,9 +5,9 @@
 .RData
 
 # directories with separate file for every patient
-data/aseg.csv/*
-data/aseg.stats/*
-data/lh.aparc.csv/*
-data/lh.aparc.stats/*
-data/rh.aparc.csv/*
-data/rh.aparc.stats/*
+data/pcp/aseg.csv/*
+data/pcp/aseg.stats/*
+data/pcp/lh.aparc.csv/*
+data/pcp/lh.aparc.stats/*
+data/pcp/rh.aparc.csv/*
+data/pcp/rh.aparc.stats/*
