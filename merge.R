@@ -19,7 +19,7 @@ write.csv(ABIDE, "data/ABIDE.csv", row.names = FALSE)
 
 #### get PCP FILE_ID list for downloading ####
 # saves FILE_ID values to /data/pcp/FILE_ID.txt
-# this file then can be used as input for get.sh script to download PCP data
+# this file then can be used as input for download.sh script to download PCP data
 read.csv("data/pcp/summary.csv") %$%
     FILE_ID %>%
     # ignore patients with no file
