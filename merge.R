@@ -122,7 +122,7 @@ rm (file1_table, file, files, file_id, file_table, i, row, col, aseg.csv_path,
     ASEG_StructName_measure, ASEG_cols, meas, struct, ASEG_StructName)
 
 
-#### append global volumes to ASEG table ####
+#### append global volumes to ASEG table - using asegstats2table output ####
 # load global values and store in ASEG_GLOBALS keeping colnames
 read.table("./data/pcp/asegstats2table/abide_as2t_vol.txt",
            header = TRUE)[ ,47:56] -> ASEG_GLOBALS
@@ -209,35 +209,58 @@ rm(file1_table, meas, struct, hemi, aparc.csv_path, files, file,
    APARC_StructName)
 
 
-#### append lh global volumes to APARC table ####
-# import SUB_ID values from lh_aparc_list.txt and store in APARC_GLOBALS_LH
-read.table("./data/pcp/aparcstats2table/lh_aparc_list.txt")[[1]] %>%
-    str_extract("\\d{7}") %>%
+#### append global vars to APARC table - using extract_aparc_globals.sh output ####
+# rh
+read.table("data/pcp/rh.aparc.SUB_ID.txt")[[1]] %>%
+    as.numeric %>%
+    data.frame -> APARC_GLOBALS_RH
+
+names(APARC_GLOBALS_RH)[1] <- "SUB_ID"
+
+# VARIABLE RENAME
+read.table("data/pcp/rh.aparc.NumVert.txt")[[1]] %>%
+    as.numeric -> APARC_GLOBALS_RH$NumVert_rh
+
+# VARIABLE RENAME
+read.table("data/pcp/rh.aparc.WhiteSurfArea.txt")[[1]] %>%
+    as.numeric -> APARC_GLOBALS_RH$WhiteSurfArea_rh
+
+# VARIABLE RENAME
+read.table("data/pcp/rh.aparc.MeanThickness.txt")[[1]] %>%
+    as.numeric -> APARC_GLOBALS_RH$MeanThickness_rh
+
+# lh
+read.table("data/pcp/lh.aparc.SUB_ID.txt")[[1]] %>%
     as.numeric %>%
     data.frame -> APARC_GLOBALS_LH
 
 names(APARC_GLOBALS_LH)[1] <- "SUB_ID"
 
-# import WhiteSurfArea_lh from lh_aparc_area.scsv
 # VARIABLE RENAME
-read.csv2("./data/pcp/aparcstats2table/lh_aparc_area.scsv") %$%
-    lh_WhiteSurfArea_area -> APARC_GLOBALS_LH$WhiteSurfArea_lh
+read.table("data/pcp/lh.aparc.NumVert.txt")[[1]] %>%
+    as.numeric -> APARC_GLOBALS_LH$NumVert_lh
 
-# import MeanThickness_lh from lh_aparc_thickness.scsv
 # VARIABLE RENAME
-read.csv2("./data/pcp/aparcstats2table/lh_aparc_thickness.scsv") %$%
-    lh_MeanThickness_thickness -> APARC_GLOBALS_LH$MeanThickness_lh
+read.table("data/pcp/lh.aparc.WhiteSurfArea.txt")[[1]] %>%
+    as.numeric -> APARC_GLOBALS_LH$WhiteSurfArea_lh
+
+# VARIABLE RENAME
+read.table("data/pcp/lh.aparc.MeanThickness.txt")[[1]] %>%
+    as.numeric -> APARC_GLOBALS_LH$MeanThickness_lh
 
 # clean up
-APARC <- merge(APARC, APARC_GLOBALS_LH, by = "SUB_ID")
+APARC_GLOBALS <- merge(APARC_GLOBALS_RH, APARC_GLOBALS_LH, by = "SUB_ID")
+APARC <- merge(APARC, APARC_GLOBALS, by = "SUB_ID")
 ABIDE.ASEG.APARC <- merge(ABIDE.ASEG, APARC, by = "SUB_ID")
-rm(APARC_GLOBALS_LH)
+
+rm(APARC_GLOBALS_RH, APARC_GLOBALS_LH, APARC_GLOBALS)
 
 # export/import
 write.csv(APARC, "data/APARC.csv", row.names = FALSE)
 write.csv(ABIDE.ASEG.APARC, "data/ABIDE.ASEG.APARC.csv", row.names = FALSE)
 # APARC <- read.csv("data/APARC.csv")
 # ABIDE.ASEG.APARC <- read.csv("data/ABIDE.ASEG.APARC.csv")
+
 
 
 #### case-control matching ####
