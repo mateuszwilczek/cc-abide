@@ -1,8 +1,21 @@
-library(stringr)
 library(magrittr)
 
 #### import merged data ####
-# unlist(use.names = TRUE)
+A <- read.csv("data/A.csv", check.names = FALSE)
+
+ASEG_structures <- unlist(read.table("data/ASEG_structures.txt"),
+                          use.names = FALSE)
+ASEG_measures <- unlist(read.table("data/ASEG_measures.txt"),
+                          use.names = FALSE)
+ASEG_globals <- unlist(read.table("data/ASEG_globals.txt"),
+                          use.names = FALSE)
+
+APARC_structures <- unlist(read.table("data/APARC_structures.txt"),
+                          use.names = FALSE)
+APARC_measures <- unlist(read.table("data/APARC_measures.txt"),
+                           use.names = FALSE)
+APARC_globals <- unlist(read.table("data/APARC_globals.txt"),
+                           use.names = FALSE)
 
 # sort by pairNumber, exclude not matched
 B <- A[order(A$pairNumber, A$pairClass), ]
@@ -26,37 +39,192 @@ GetAparcValue <- function(sub_id, hemi, struct, meas){
 }
 
 
-# case-vs-control wrappers for wilcox.test and t.test
+# case-vs-control wrapper for wilcox.test
 wilcox.cvc <- function(x) {
     return(wilcox.test(x[B$pairClass == "case"],
                        x[B$pairClass == "control"],
                        paired = TRUE))
 }
-t.cvc <- function(x) {
-    return(t.test(x[B$pairClass == "case"],
-                  x[B$pairClass == "control"],
-                  paired = TRUE))
+
+#### CC area ####
+wilcox.cvc(B$CC_area)
+
+# difference realive to control
+B$CC_area[B$pairClass == "case"] %>%
+    `-`(B$CC_area[B$pairClass == "control"]) %>%
+    `/`(B$CC_area[B$pairClass == "control"]) -> CC_area_RelDiff
+mean(CC_area_RelDiff)
+sd(CC_area_RelDiff)
+plot(B$AGE[B$pairClass == "control"], CC_area_RelDiff)
+
+
+
+#### CC area ~ volume of brain structures ####
+## volume only - individual structures
+for (structure in ASEG_structures) {
+    control_all <- GetAsegValue(B$SUB_ID[B$pairClass == "control"],
+                                struct = structure,
+                                meas = "Volume_mm3")
+    case_all <- GetAsegValue(B$SUB_ID[B$pairClass == "case"],
+                             struct = structure,
+                             meas = "Volume_mm3")
+    
+    # remove pairs where one value is NA
+    control_0 <- control_all[!is.na(control_all) & !is.na(case_all)]
+    case_0 <- case_all[!is.na(control_all) & !is.na(case_all)]
+    
+    # TODO cannot compute exact p-value with zeroes
+    test <- wilcox.test(control, case, paired = TRUE)$p.value
+    
+    if (test < 0.05) {
+        cat("control:\t", mean(control), "\t",
+            "case:\t", mean(case), "\t",
+            test, "\t", structure, "\n")
+    } else {
+        cat("nonsignificant\t", test, "\t", structure, "\n")
+    }
+}
+
+## volume only - globals
+for (global in ASEG_globals) {
+    control <- B[ , match(global, names(B))][B$pairClass == "control"]
+    case <- B[ , match(global, names(B))][B$pairClass == "case"]
+    
+    test <- wilcox.test(control, case, paired = TRUE)$p.value
+    
+    if (test < 0.05) {
+        cat("control:\t", mean(control), "\t",
+            "case:\t", mean(case), "\t",
+            test, "\t", global, "\n")
+    } else {
+        cat("nonsignificant\t", test, "\t", global, "\n")
+    }
+}
+
+## relative to CC area - individual structures
+for (structure in ASEG_structures) {
+    control_all <- GetAsegValue(B$SUB_ID[B$pairClass == "control"],
+                                struct = structure,
+                                meas = "Volume_mm3")
+    case_all <- GetAsegValue(B$SUB_ID[B$pairClass == "case"],
+                             struct = structure,
+                             meas = "Volume_mm3")
+    
+    # relative to CC area
+    control_all <- control_all / B$CC_area[B$pairClass == "control"]
+    case_all <- case_all / B$CC_area[B$pairClass == "case"]
+    
+    # remove pairs where one value is NA
+    control_CC <- control_all[!is.na(control_all) & !is.na(case_all)]
+    case_CC <- case_all[!is.na(control_all) & !is.na(case_all)]
+    
+    # TODO cannot compute exact p-value with zeroes
+    test <- wilcox.test(control_CC, case_CC, paired = TRUE)$p.value
+    
+    if (test < 0.05) {
+        cat("control:\t", mean(control_CC), "\t",
+            "case:\t", mean(case_CC), "\t",
+            test, "\t", structure, "\n")
+    } else {
+        cat("nonsignificant\t", test, "\t", structure, "\n")
+    }
+}
+
+## relative to CC area - globals
+for (global in ASEG_globals) {
+    control <- B[ , match(global, names(B))][B$pairClass == "control"]
+    case <- B[ , match(global, names(B))][B$pairClass == "case"]
+    
+    # relative to CC area
+    control_CC <- control / B$CC_area[B$pairClass == "control"]
+    case_CC <- case / B$CC_area[B$pairClass == "case"]
+    
+    test <- wilcox.test(control_CC, case_CC, paired = TRUE)$p.value
+    
+    if (test < 0.05) {
+        cat("control:\t", mean(control_CC), "\t",
+            "case:\t", mean(case_CC), "\t",
+            test, "\t", global, "\n")
+    } else {
+        cat("nonsignificant\t", test, "\t", global, "\n")
+    }
 }
 
 
-#### CC area ~ volume of structures ####
-#### CC area ~ curvature, surface area of cortical structures ####
-#### random ####
-# compare WhiteSurfArea
+
+
+#### CC area ~ surface area of cortical structures ####
+## surface only - individual structures
+for (structure in APARC_structures) {
+    for (hemisphere in c("rh", "lh")) {
+        control_all <- GetAparcValue(B$SUB_ID[B$pairClass == "control"],
+                                     hemi = hemisphere,
+                                     struct = structure,
+                                     meas = "SurfArea")
+        case_all <- GetAparcValue(B$SUB_ID[B$pairClass == "case"],
+                                  hemi = hemisphere,
+                                  struct = structure,
+                                  meas = "SurfArea")
+        
+        # remove pairs where one value is NA
+        control <- control_all[!is.na(control_all) & !is.na(case_all)]
+        case <- case_all[!is.na(control_all) & !is.na(case_all)]
+        
+        test <- wilcox.test(control, case, paired = TRUE)$p.value
+        
+        if (test < 0.05) {
+            cat("control:\t", mean(control), "\t",
+                "case:\t", mean(case), "\t",
+                test, "\t", structure, "_", hemisphere, "\n",
+                sep = "")
+        } else {
+            cat("nonsignificant\t", test, "\t", structure, "_", hemisphere,"\n",
+                sep = "")
+        }
+    }
+}
+
+## surface only - globals
 WhiteSurfArea_total <- B$WhiteSurfArea_rh + B$WhiteSurfArea_lh
-wilcox.cvc(WhiteSurfArea_total)
-wilcox.cvc(B$WhiteSurfArea_rh)
-wilcox.cvc(B$WhiteSurfArea_lh)
+wilcox.cvc(WhiteSurfArea_total)$p.value
+wilcox.cvc(B$WhiteSurfArea_rh)$p.value
+wilcox.cvc(B$WhiteSurfArea_lh)$p.value
 
-# compare WhiteSurfArea realtive to CC_area
-wilcox.cvc(WhiteSurfArea_total / B$CC_area)
-wilcox.cvc(B$WhiteSurfArea_rh / B$CC_area)
-wilcox.cvc(B$WhiteSurfArea_lh / B$CC_area)
+## relative to CC area - individual structures
+for (structure in APARC_structures) {
+    for (hemisphere in c("rh", "lh")) {
+        control_all <- GetAparcValue(B$SUB_ID[B$pairClass == "control"],
+                                     hemi = hemisphere,
+                                     struct = structure,
+                                     meas = "SurfArea")
+        case_all <- GetAparcValue(B$SUB_ID[B$pairClass == "case"],
+                                  hemi = hemisphere,
+                                  struct = structure,
+                                  meas = "SurfArea")
+        
+        # relative to CC area
+        control_all <- control_all / B$CC_area[B$pairClass == "control"]
+        case_all <- case_all / B$CC_area[B$pairClass == "case"]
+        
+        # remove pairs where one value is NA
+        control_CC <- control_all[!is.na(control_all) & !is.na(case_all)]
+        case_CC <- case_all[!is.na(control_all) & !is.na(case_all)]
+        
+        test <- wilcox.test(control_CC, case_CC, paired = TRUE)$p.value
+        
+        if (test < 0.05) {
+            cat("control:\t", mean(control_CC), "\t",
+                "case:\t", mean(case_CC), "\t",
+                test, "\t", structure, "_", hemisphere, "\n",
+                sep = "")
+        } else {
+            cat("nonsignificant\t", test, "\t", structure, "_", hemisphere,"\n",
+                sep = "")
+        }
+    }
+}
 
-# compare MeanThickness
-wilcox.cvc(B$MeanThickness_rh)
-wilcox.cvc(B$MeanThickness_lh)
-
-# compare TotalGrayVol
-wilcox.cvc(B$TotalGrayVol)
-wilcox.cvc(B$TotalGrayVol / B$CC_area)
+## relative to CC area - globals
+wilcox.cvc(WhiteSurfArea_total / B$CC_area)$p.value
+wilcox.cvc(B$WhiteSurfArea_rh / B$CC_area)$p.value
+wilcox.cvc(B$WhiteSurfArea_lh / B$CC_area)$p.value

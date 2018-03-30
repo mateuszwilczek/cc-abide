@@ -302,8 +302,8 @@ pairNumber <- rep(0, nrow(A))
 matchType <- rep(NA, nrow(A))
 matched <- rep(FALSE, nrow(A))
 
-# using data.frame() rather than cbind() changes Aseg var names ("-" to "\.", "^\d" to "^X\d")
-A <- cbind(A, pairNumber, pairClass, matched, matchType)
+A <- data.frame(A, pairNumber, pairClass, matched, matchType,
+                check.names = FALSE)
 rm(pairNumber, pairClass, matched, matchType)
 
 # maximum allowed age difference for Close Match and Distant Match
