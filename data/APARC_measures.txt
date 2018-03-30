@@ -1,0 +1,9 @@
+NumVert
+SurfArea
+GrayVol
+ThickAvg
+ThickStd
+MeanCurv
+GausCurv
+FoldInd
+CurvInd

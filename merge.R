@@ -117,6 +117,13 @@ for (file in files) {
     }
     i <- i + 1
 }
+
+# for easy access in analyze.R
+write(as.character(ASEG_StructName),
+      file = "data/ASEG_structures.txt")
+write(as.character(colnames(file1_table)[ASEG_cols]),
+      file = "data/ASEG_measures.txt")
+
 # clean up
 rm (file1_table, file, files, file_id, file_table, i, row, col, aseg.csv_path,
     ASEG_StructName_measure, ASEG_cols, meas, struct, ASEG_StructName)
@@ -126,6 +133,10 @@ rm (file1_table, file, files, file_id, file_table, i, row, col, aseg.csv_path,
 # load global values and store in ASEG_GLOBALS keeping colnames
 read.table("./data/pcp/asegstats2table/abide_as2t_vol.txt",
            header = TRUE)[ ,47:56] -> ASEG_GLOBALS
+
+# for easy access in analyze.R
+write(names(ASEG_GLOBALS),
+      file = "data/ASEG_globals.txt")
 
 # load SUB_ID values from list.txt and append to ASEG_GLOBALS
 read.table("./data/pcp/asegstats2table/list.txt")[[1]] %>%
@@ -203,6 +214,12 @@ for (hemi in c("rh", "lh")) {
     }
 }
 
+# for easy access in analyze.R
+write(as.character(APARC_StructName),
+      file = "data/APARC_structures.txt")
+write(as.character(colnames(file1_table)[-1]),
+      file = "data/APARC_measures.txt")
+
 # clean up
 rm(file1_table, meas, struct, hemi, aparc.csv_path, files, file,
    file_table, file_id, i, col, row, APARC_StructName_hemi_meas,
@@ -210,7 +227,7 @@ rm(file1_table, meas, struct, hemi, aparc.csv_path, files, file,
 
 
 #### append global vars to APARC table - using extract_aparc_globals.sh output ####
-# rh
+## rh
 read.table("data/pcp/rh.aparc.SUB_ID.txt")[[1]] %>%
     as.numeric %>%
     data.frame -> APARC_GLOBALS_RH
@@ -229,7 +246,7 @@ read.table("data/pcp/rh.aparc.WhiteSurfArea.txt")[[1]] %>%
 read.table("data/pcp/rh.aparc.MeanThickness.txt")[[1]] %>%
     as.numeric -> APARC_GLOBALS_RH$MeanThickness_rh
 
-# lh
+## lh
 read.table("data/pcp/lh.aparc.SUB_ID.txt")[[1]] %>%
     as.numeric %>%
     data.frame -> APARC_GLOBALS_LH
@@ -247,6 +264,11 @@ read.table("data/pcp/lh.aparc.WhiteSurfArea.txt")[[1]] %>%
 # VARIABLE RENAME
 read.table("data/pcp/lh.aparc.MeanThickness.txt")[[1]] %>%
     as.numeric -> APARC_GLOBALS_LH$MeanThickness_lh
+
+# for easy access in analyze.R
+write(c(names(APARC_GLOBALS_RH[-1]),
+        names(APARC_GLOBALS_LH[-1])),
+      file = "data/APARC_globals.txt")
 
 # clean up
 APARC_GLOBALS <- merge(APARC_GLOBALS_RH, APARC_GLOBALS_LH, by = "SUB_ID")
@@ -428,57 +450,4 @@ rm(i)
 mean(pairAgeDifference, na.rm = TRUE)
 sd(pairAgeDifference, na.rm = TRUE)
 rm(pairAgeDifference)
-
-#### miscellaneous ####
-# functions to retrieve Aseg and Aparc data
-GetAsegValue <- function(sub_id, struct, meas){
-    return(A[match(sub_id, A$SUB_ID),
-             match(paste0(struct, "_", meas), names(A))])
-}
-
-GetAparcValue <- function(sub_id, hemi, struct, meas){
-    return(A[match(sub_id, A$SUB_ID),
-             match(paste0(struct, "_", hemi, "_", meas), names(A))])
-}
-
-
-#### analysis ####
-# sort by pairNumber, exclude not matched
-B <- A[order(A$pairNumber, A$pairClass), ]
-B <- B[B$matched, ]
-
-# verify proper sorting
-all(B$pairNumber[B$pairClass == "control"] ==
-    B$pairNumber[B$pairClass == "case"])
-
-# case-vs-control wrappers for wilcox.test and t.test
-wilcox.cvc <- function(x) {
-    return(wilcox.test(x[B$pairClass == "case"],
-                       x[B$pairClass == "control"],
-                       paired = TRUE))
-}
-t.cvc <- function(x) {
-    return(t.test(x[B$pairClass == "case"],
-                  x[B$pairClass == "control"],
-                  paired = TRUE))
-}
-
-# compare WhiteSurfArea
-WhiteSurfArea_total <- B$WhiteSurfArea_rh + B$WhiteSurfArea_lh
-wilcox.cvc(WhiteSurfArea_total)
-wilcox.cvc(B$WhiteSurfArea_rh)
-wilcox.cvc(B$WhiteSurfArea_lh)
-
-# compare WhiteSurfArea realtive to CC_area
-wilcox.cvc(WhiteSurfArea_total / B$CC_area)
-wilcox.cvc(B$WhiteSurfArea_rh / B$CC_area)
-wilcox.cvc(B$WhiteSurfArea_lh / B$CC_area)
-
-# compare MeanThickness
-wilcox.cvc(B$MeanThickness_rh)
-wilcox.cvc(B$MeanThickness_lh)
-
-# compare TotalGrayVol
-wilcox.cvc(B$TotalGrayVol)
-wilcox.cvc(B$TotalGrayVol / B$CC_area)
 

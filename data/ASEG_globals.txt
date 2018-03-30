@@ -1,0 +1,10 @@
+lhCortexVol
+rhCortexVol
+CortexVol
+lhCorticalWhiteMatterVol
+rhCorticalWhiteMatterVol
+CorticalWhiteMatterVol
+SubCortGrayVol
+TotalGrayVol
+SupraTentorialVol
+IntraCranialVol

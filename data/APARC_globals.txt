@@ -1,0 +1,6 @@
+NumVert_rh
+WhiteSurfArea_rh
+MeanThickness_rh
+NumVert_lh
+WhiteSurfArea_lh
+MeanThickness_lh
