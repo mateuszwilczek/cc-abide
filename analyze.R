@@ -70,8 +70,8 @@ for (structure in ASEG_structures) {
                              meas = "Volume_mm3")
     
     # remove pairs where one value is NA
-    control_0 <- control_all[!is.na(control_all) & !is.na(case_all)]
-    case_0 <- case_all[!is.na(control_all) & !is.na(case_all)]
+    control <- control_all[!is.na(control_all) & !is.na(case_all)]
+    case <- case_all[!is.na(control_all) & !is.na(case_all)]
     
     # TODO cannot compute exact p-value with zeroes
     test <- wilcox.test(control, case, paired = TRUE)$p.value
