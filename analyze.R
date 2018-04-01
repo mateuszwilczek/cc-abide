@@ -19,9 +19,9 @@ APARC_globals <- unlist(read.table("data/APARC_globals.txt"),
 
 # add summed structures as variables to A
 
-# Fluid
 # BrainSegNotVent - same as BrainSeg without ventricles (lateral, inferior lateral, 3rd, 4th, 5th), CSF, and choroid plexus.
-A$Fluid_Volume_mm3 <-
+# Ventricles
+A$Ventricles_Volume_mm3 <-
   # Ventricles
   A$`Left-Lateral-Ventricle_Volume_mm3` +
   A$`Left-Inf-Lat-Vent_Volume_mm3` +
@@ -29,9 +29,11 @@ A$Fluid_Volume_mm3 <-
   A$`Right-Inf-Lat-Vent_Volume_mm3` +
   A$`3rd-Ventricle_Volume_mm3` +
   A$`4th-Ventricle_Volume_mm3` +
-  A$`5th-Ventricle_Volume_mm3` +
-  
-  # Other
+  A$`5th-Ventricle_Volume_mm3`
+
+# Fluid
+A$Fluid_Volume_mm3 <- 
+  A$Ventricles_Volume_mm3 +
   A$`Left-choroid-plexus_Volume_mm3` +
   A$`Right-choroid-plexus_Volume_mm3` +
   A$CSF_Volume_mm3
@@ -72,6 +74,11 @@ wilcox.cvc <- function(x) {
 }
 
 #### interesting things first, fishing expedition later ####
+# Ventricles
+wilcox.test(B$Ventricles_Volume_mm3 ~ B$pairClass)$p.value
+B$Ventricles_Volume_mm3[B$pairClass == "control"] %T>% {print(mean(.))} %>% sd
+B$Ventricles_Volume_mm3[B$pairClass == "case"] %T>% {print(mean(.))} %>% sd
+
 # Fluid
 wilcox.test(B$Fluid_Volume_mm3 ~ B$pairClass)$p.value
 B$Fluid_Volume_mm3[B$pairClass == "control"] %T>% {print(mean(.))} %>% sd
@@ -81,6 +88,20 @@ B$Fluid_Volume_mm3[B$pairClass == "case"] %T>% {print(mean(.))} %>% sd
 wilcox.test(B$Pallidum_Volume_mm3 ~ B$pairClass)$p.value
 B$Pallidum_Volume_mm3[B$pairClass == "control"] %T>% {print(mean(.))} %>% sd
 B$Pallidum_Volume_mm3[B$pairClass == "case"] %T>% {print(mean(.))} %>% sd
+
+# Right-Pallidum
+wilcox.test(B$`Right-Pallidum_Volume_mm3` ~ B$pairClass)$p.value
+B$`Right-Pallidum_Volume_mm3`[B$pairClass == "control"] %T>%
+  {print(mean(.))} %>% sd
+B$`Right-Pallidum_Volume_mm3`[B$pairClass == "case"] %T>%
+  {print(mean(.))} %>% sd
+
+# Left-Pallidum
+wilcox.test(B$`Left-Pallidum_Volume_mm3` ~ B$pairClass)$p.value
+B$`Left-Pallidum_Volume_mm3`[B$pairClass == "control"] %T>%
+  {print(mean(.))} %>% sd
+B$`Left-Pallidum_Volume_mm3`[B$pairClass == "case"] %T>%
+  {print(mean(.))} %>% sd
 
 
 #### CC area ####
