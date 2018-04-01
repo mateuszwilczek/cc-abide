@@ -17,6 +17,31 @@ APARC_measures <- unlist(read.table("data/APARC_measures.txt"),
 APARC_globals <- unlist(read.table("data/APARC_globals.txt"),
                            use.names = FALSE)
 
+# add summed structures as variables to A
+
+# Fluid
+# BrainSegNotVent - same as BrainSeg without ventricles (lateral, inferior lateral, 3rd, 4th, 5th), CSF, and choroid plexus.
+A$Fluid_Volume_mm3 <-
+  # Ventricles
+  A$`Left-Lateral-Ventricle_Volume_mm3` +
+  A$`Left-Inf-Lat-Vent_Volume_mm3` +
+  A$`Right-Lateral-Ventricle_Volume_mm3` +
+  A$`Right-Inf-Lat-Vent_Volume_mm3` +
+  A$`3rd-Ventricle_Volume_mm3` +
+  A$`4th-Ventricle_Volume_mm3` +
+  A$`5th-Ventricle_Volume_mm3` +
+  
+  # Other
+  A$`Left-choroid-plexus_Volume_mm3` +
+  A$`Right-choroid-plexus_Volume_mm3` +
+  A$CSF_Volume_mm3
+
+# Pallidum
+A$Pallidum_Volume_mm3 <-
+  A$`Left-Pallidum_Volume_mm3` +
+  A$`Right-Pallidum_Volume_mm3`
+
+
 # sort by pairNumber, exclude not matched
 B <- A[order(A$pairNumber, A$pairClass), ]
 B <- B[B$matched, ]
@@ -46,6 +71,18 @@ wilcox.cvc <- function(x) {
                        paired = TRUE))
 }
 
+#### interesting things first, fishing expedition later ####
+# Fluid
+wilcox.test(B$Fluid_Volume_mm3 ~ B$pairClass)$p.value
+B$Fluid_Volume_mm3[B$pairClass == "control"] %T>% {print(mean(.))} %>% sd
+B$Fluid_Volume_mm3[B$pairClass == "case"] %T>% {print(mean(.))} %>% sd
+
+# Pallidum
+wilcox.test(B$Pallidum_Volume_mm3 ~ B$pairClass)$p.value
+B$Pallidum_Volume_mm3[B$pairClass == "control"] %T>% {print(mean(.))} %>% sd
+B$Pallidum_Volume_mm3[B$pairClass == "case"] %T>% {print(mean(.))} %>% sd
+
+
 #### CC area ####
 wilcox.cvc(B$CC_area)
 
@@ -55,7 +92,7 @@ B$CC_area[B$pairClass == "case"] %>%
     `/`(B$CC_area[B$pairClass == "control"]) -> CC_area_RelDiff
 mean(CC_area_RelDiff)
 sd(CC_area_RelDiff)
-plot(B$AGE[B$pairClass == "control"], CC_area_RelDiff)
+# plot(B$AGE[B$pairClass == "control"], CC_area_RelDiff)
 
 
 
