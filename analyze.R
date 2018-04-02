@@ -1,4 +1,5 @@
 library(magrittr)
+library(effsize)
 
 #### import merged data ####
 A <- read.csv("data/A.csv", check.names = FALSE)
@@ -18,11 +19,9 @@ APARC_globals <- unlist(read.table("data/APARC_globals.txt"),
                            use.names = FALSE)
 
 # add summed structures as variables to A
-
 # BrainSegNotVent - same as BrainSeg without ventricles (lateral, inferior lateral, 3rd, 4th, 5th), CSF, and choroid plexus.
 # Ventricles
 A$Ventricles_Volume_mm3 <-
-  # Ventricles
   A$`Left-Lateral-Ventricle_Volume_mm3` +
   A$`Left-Inf-Lat-Vent_Volume_mm3` +
   A$`Right-Lateral-Ventricle_Volume_mm3` +
@@ -48,13 +47,14 @@ A$Pallidum_Volume_mm3 <-
 B <- A[order(A$pairNumber, A$pairClass), ]
 B <- B[B$matched, ]
 
+
 # verify proper sorting
 all(B$pairNumber[B$pairClass == "control"] ==
         B$pairNumber[B$pairClass == "case"])
 
 
-#### miscellaneous ####
-# functions to retrieve Aseg and Aparc data
+#### functions ####
+# retrieve Aseg and Aparc data
 GetAsegValue <- function(sub_id, struct, meas){
     return(A[match(sub_id, A$SUB_ID),
              match(paste0(struct, "_", meas), names(A))])
@@ -73,35 +73,30 @@ wilcox.cvc <- function(x) {
                        paired = TRUE))
 }
 
-#### interesting things first, fishing expedition later ####
-# Ventricles
-wilcox.test(B$Ventricles_Volume_mm3 ~ B$pairClass)$p.value
-B$Ventricles_Volume_mm3[B$pairClass == "control"] %T>% {print(mean(.))} %>% sd
-B$Ventricles_Volume_mm3[B$pairClass == "case"] %T>% {print(mean(.))} %>% sd
+# print case-vs-control differences: wilcox.test, cohen.d, mean ± sd
+PrintDifference <- function(x, paired = FALSE) {
+    w <- wilcox.test(x ~ B$pairClass, paired = paired)$p.value %>% round(4)
+    d <- cohen.d(x ~ B$pairClass, paired = paired)$estimate %>% round(4)
+    m0 <- mean(x[B$pairClass == "control"]) %>% round()
+    m1 <- mean(x[B$pairClass == "case"]) %>% round()
+    s0 <- sd(x[B$pairClass == "control"]) %>% round()
+    s1 <- sd(x[B$pairClass == "case"]) %>% round()
+    
+    cat("Wilcox:", w, "|",
+        "Cohen's d:", d, "|",
+        "control:", m0, "±", s0, "|",
+        "case:", m1, "±", s1, "\n")
+}
 
-# Fluid
-wilcox.test(B$Fluid_Volume_mm3 ~ B$pairClass)$p.value
-B$Fluid_Volume_mm3[B$pairClass == "control"] %T>% {print(mean(.))} %>% sd
-B$Fluid_Volume_mm3[B$pairClass == "case"] %T>% {print(mean(.))} %>% sd
+#### interesting things ####
+# Ventricles/CSF
+PrintDifference(B$Ventricles_Volume_mm3)
+PrintDifference(B$Fluid_Volume_mm3)
 
 # Pallidum
-wilcox.test(B$Pallidum_Volume_mm3 ~ B$pairClass)$p.value
-B$Pallidum_Volume_mm3[B$pairClass == "control"] %T>% {print(mean(.))} %>% sd
-B$Pallidum_Volume_mm3[B$pairClass == "case"] %T>% {print(mean(.))} %>% sd
-
-# Right-Pallidum
-wilcox.test(B$`Right-Pallidum_Volume_mm3` ~ B$pairClass)$p.value
-B$`Right-Pallidum_Volume_mm3`[B$pairClass == "control"] %T>%
-  {print(mean(.))} %>% sd
-B$`Right-Pallidum_Volume_mm3`[B$pairClass == "case"] %T>%
-  {print(mean(.))} %>% sd
-
-# Left-Pallidum
-wilcox.test(B$`Left-Pallidum_Volume_mm3` ~ B$pairClass)$p.value
-B$`Left-Pallidum_Volume_mm3`[B$pairClass == "control"] %T>%
-  {print(mean(.))} %>% sd
-B$`Left-Pallidum_Volume_mm3`[B$pairClass == "case"] %T>%
-  {print(mean(.))} %>% sd
+PrintDifference(B$Pallidum_Volume_mm3)
+PrintDifference(B$`Right-Pallidum_Volume_mm3`)
+PrintDifference(B$`Left-Pallidum_Volume_mm3`)
 
 
 #### CC area ####
