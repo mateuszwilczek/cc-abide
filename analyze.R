@@ -18,29 +18,32 @@ APARC_measures <- unlist(read.table("data/APARC_measures.txt"),
 APARC_globals <- unlist(read.table("data/APARC_globals.txt"),
                            use.names = FALSE)
 
-# add summed structures as variables to A
-# BrainSegNotVent - same as BrainSeg without ventricles (lateral, inferior lateral, 3rd, 4th, 5th), CSF, and choroid plexus.
+# add summed structures as variables to A.
+# Lateral Ventricles
+A$LatVentricles_Volume_mm3 <- 
+    A$`Left-Lateral-Ventricle_Volume_mm3` +
+    A$`Left-Inf-Lat-Vent_Volume_mm3` +
+    A$`Right-Lateral-Ventricle_Volume_mm3` +
+    A$`Right-Inf-Lat-Vent_Volume_mm3`
+
 # Ventricles
 A$Ventricles_Volume_mm3 <-
-  A$`Left-Lateral-Ventricle_Volume_mm3` +
-  A$`Left-Inf-Lat-Vent_Volume_mm3` +
-  A$`Right-Lateral-Ventricle_Volume_mm3` +
-  A$`Right-Inf-Lat-Vent_Volume_mm3` +
-  A$`3rd-Ventricle_Volume_mm3` +
-  A$`4th-Ventricle_Volume_mm3` +
-  A$`5th-Ventricle_Volume_mm3`
+    A$LatVentricles_Volume_mm3 +
+    A$`3rd-Ventricle_Volume_mm3` +
+    A$`4th-Ventricle_Volume_mm3` +
+    A$`5th-Ventricle_Volume_mm3`
 
 # Fluid
 A$Fluid_Volume_mm3 <- 
-  A$Ventricles_Volume_mm3 +
-  A$`Left-choroid-plexus_Volume_mm3` +
-  A$`Right-choroid-plexus_Volume_mm3` +
-  A$CSF_Volume_mm3
+    A$Ventricles_Volume_mm3 +
+    A$`Left-choroid-plexus_Volume_mm3` +
+    A$`Right-choroid-plexus_Volume_mm3` +
+    A$CSF_Volume_mm3
 
 # Pallidum
 A$Pallidum_Volume_mm3 <-
-  A$`Left-Pallidum_Volume_mm3` +
-  A$`Right-Pallidum_Volume_mm3`
+    A$`Left-Pallidum_Volume_mm3` +
+    A$`Right-Pallidum_Volume_mm3`
 
 
 # sort by pairNumber, exclude not matched
@@ -77,10 +80,10 @@ wilcox.cvc <- function(x) {
 PrintDifference <- function(x, paired = FALSE) {
     w <- wilcox.test(x ~ B$pairClass, paired = paired)$p.value %>% round(4)
     d <- cohen.d(x ~ B$pairClass, paired = paired)$estimate %>% round(4)
-    m0 <- mean(x[B$pairClass == "control"]) %>% round()
-    m1 <- mean(x[B$pairClass == "case"]) %>% round()
-    s0 <- sd(x[B$pairClass == "control"]) %>% round()
-    s1 <- sd(x[B$pairClass == "case"]) %>% round()
+    m0 <- median(x[B$pairClass == "control"]) %>% round()
+    m1 <- median(x[B$pairClass == "case"]) %>% round()
+    s0 <- IQR(x[B$pairClass == "control"]) %>% round()
+    s1 <- IQR(x[B$pairClass == "case"]) %>% round()
     
     cat("Wilcox:", w, "|",
         "Cohen's d:", d, "|",
@@ -90,6 +93,7 @@ PrintDifference <- function(x, paired = FALSE) {
 
 #### interesting things ####
 # Ventricles/CSF
+PrintDifference(B$LatVentricles_Volume_mm3)
 PrintDifference(B$Ventricles_Volume_mm3)
 PrintDifference(B$Fluid_Volume_mm3)
 
@@ -97,6 +101,9 @@ PrintDifference(B$Fluid_Volume_mm3)
 PrintDifference(B$Pallidum_Volume_mm3)
 PrintDifference(B$`Right-Pallidum_Volume_mm3`)
 PrintDifference(B$`Left-Pallidum_Volume_mm3`)
+
+# Amygdala
+PrintDifference(B$`Left-Amygdala_Volume_mm3` + B$`Right-Amygdala_Volume_mm3`)
 
 
 #### CC area ####
