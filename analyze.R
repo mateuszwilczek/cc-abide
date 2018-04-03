@@ -1,6 +1,7 @@
 library(magrittr)
 library(effsize)
 library(ggplot2)
+library(tidyr)
 # library(nortest)
 
 
@@ -11,49 +12,56 @@ A <- read.csv("data/A.csv", check.names = FALSE)
 ASEG_structures <- unlist(read.table("data/ASEG_structures.txt"),
                           use.names = FALSE)
 ASEG_measures <- unlist(read.table("data/ASEG_measures.txt"),
-                          use.names = FALSE)
+                        use.names = FALSE)
 ASEG_globals <- unlist(read.table("data/ASEG_globals.txt"),
-                          use.names = FALSE)
+                       use.names = FALSE)
 
 APARC_structures <- unlist(read.table("data/APARC_structures.txt"),
-                          use.names = FALSE)
+                           use.names = FALSE)
 APARC_measures <- unlist(read.table("data/APARC_measures.txt"),
-                           use.names = FALSE)
+                         use.names = FALSE)
 APARC_globals <- unlist(read.table("data/APARC_globals.txt"),
-                           use.names = FALSE)
+                        use.names = FALSE)
 
 
 # create variables: summed structures -------------------------------------
 
-# TODO simpler but less consistent names without "_Volume_mm3"?
+# # print all existing ASEG variable names
+# for (s in ASEG_structures) {
+#     cat("A$`", s, "_Volume_mm3` +\n", sep = "")
+# }
+# for (g in ASEG_globals) {
+#     cat("A$", g, " +\n", sep = "")
+# }
+
 # Lateral Ventricles
-A$LatVentricles_Volume_mm3 <- 
+A$LatVentricles <- 
     A$`Left-Lateral-Ventricle_Volume_mm3` +
     A$`Left-Inf-Lat-Vent_Volume_mm3` +
     A$`Right-Lateral-Ventricle_Volume_mm3` +
     A$`Right-Inf-Lat-Vent_Volume_mm3`
 
 # Ventricles
-A$Ventricles_Volume_mm3 <-
-    A$LatVentricles_Volume_mm3 +
+A$Ventricles <-
+    A$LatVentricles +
     A$`3rd-Ventricle_Volume_mm3` +
     A$`4th-Ventricle_Volume_mm3` +
     A$`5th-Ventricle_Volume_mm3`
 
 # Fluid
-A$Fluid_Volume_mm3 <- 
-    A$Ventricles_Volume_mm3 +
+A$Fluid <- 
+    A$Ventricles +
     A$`Left-choroid-plexus_Volume_mm3` +
     A$`Right-choroid-plexus_Volume_mm3` +
     A$CSF_Volume_mm3
 
 # Pallidum
-A$Pallidum_Volume_mm3 <-
+A$Pallidum <-
     A$`Left-Pallidum_Volume_mm3` +
     A$`Right-Pallidum_Volume_mm3`
 
 # Amygdala
-A$Amygdala_Volume_mm3 <-
+A$Amygdala <-
     A$`Left-Amygdala_Volume_mm3` +
     A$`Right-Amygdala_Volume_mm3`
 
@@ -66,20 +74,13 @@ A$pTBV <-
     A$`Right-Cerebellum-White-Matter_Volume_mm3` +
     A$`Right-Cerebellum-Cortex_Volume_mm3` +
     A$`Brain-Stem_Volume_mm3` -
-    A$LatVentricles_Volume_mm3 -
+    A$LatVentricles -
     A$`Left-choroid-plexus_Volume_mm3` -
     A$`Right-choroid-plexus_Volume_mm3`
-    
-# for (s in ASEG_structures) {
-#     cat("A$`", s, "_Volume_mm3` +\n", sep = "")
-# }
-# for (g in ASEG_globals) {
-#     cat("A$", g, " +\n", sep = "")
-# }
 
 # estimated Total Brain Volume
 # based on eTIV
-A$eTBV <- A$IntraCranialVol - A$Fluid_Volume_mm3
+A$eTBV <- A$IntraCranialVol - A$Fluid
 
 # estimated Total Intracranial Volume
 # new name for consistency with pTBV and eTBV
@@ -118,6 +119,7 @@ wilcox.cvc <- function(x) {
 }
 
 # print case-vs-control differences: wilcox.test, cohen.d, median [1Q - 3Q]
+# TODO forget and use Report() instead
 PrintDifference <- function(x, round = 0, wp = FALSE, dp = FALSE) {
     w <- wilcox.test(x ~ B$pairClass, paired = wp)$p.value %>% round(4)
     d <- cohen.d(x ~ B$pairClass, paired = dp)
@@ -140,11 +142,11 @@ PrintDifference <- function(x, round = 0, wp = FALSE, dp = FALSE) {
 }
 
 # generate a table with results
-GenerateReport <- function(variable,
-                           wilcox_paired = FALSE,
-                           d_paired = FALSE,
-                           p = 0.05,
-                           digits = 4) {
+Report <- function(variable,
+                   wilcox_paired = FALSE,
+                   d_paired = FALSE,
+                   alpha = 0.05,
+                   digits = 4) {
     
     x <- B[ , match(variable, names(B))]
     
@@ -158,7 +160,7 @@ GenerateReport <- function(variable,
         "Variable" = variable,
         
         "Wilcox_p.value" = w$p.value %>% round(digits),
-        "Wilcox_significant" = w$p.value < p,
+        "Wilcox_significant" = w$p.value < alpha,
         
         "Cohens_d" = d$estimate[[1]] %>% round(digits),
         "Cohens_d_CI_inf" = d$conf.int[[1]] %>% round(digits),
@@ -183,46 +185,65 @@ dp = FALSE
 
 # generate a report table
 c(
-    "LatVentricles_Volume_mm3",
-    "Ventricles_Volume_mm3",
-    "Fluid_Volume_mm3",
+    "LatVentricles",
+    "Ventricles",
+    "Fluid",
     "pTBV",
     "eTBV",
     "eTIV",
-    "Pallidum_Volume_mm3",
+    "Pallidum",
     "Right-Pallidum_Volume_mm3",
     "Left-Pallidum_Volume_mm3",
-    "Amygdala_Volume_mm3"
+    "Amygdala"
 ) %>% 
-    sapply(GenerateReport, wilcox_paired = wp, d_paired = dp) %>%
+    sapply(Report, wilcox_paired = wp, d_paired = dp, USE.NAMES = FALSE) %>%
     t -> report
 View(report)
 write.csv(report, file = "results/report.csv", row.names = FALSE)
-# read.csv("results/report.csv") %>% View("report")
-
-# print report to console
-# Ventricles/CSF
-PrintDifference(B$LatVentricles_Volume_mm3, wp = wp, dp = dp)
-PrintDifference(B$Ventricles_Volume_mm3, wp = wp, dp = dp)
-PrintDifference(B$Fluid_Volume_mm3, wp = wp, dp = dp)
-
-# Pallidum
-PrintDifference(B$Pallidum_Volume_mm3, wp = wp, dp = dp)
-PrintDifference(B$`Right-Pallidum_Volume_mm3`, wp = wp, dp = dp)
-PrintDifference(B$`Left-Pallidum_Volume_mm3`, wp = wp, dp = dp)
-
-# Amygdala
-PrintDifference(B$Amygdala_Volume_mm3,
-                wp = wp, dp = dp)
+# read.csv("results/report.csv") %>% View("report.csv")
 
 
 # plots -------------------------------------------------------------------
 
-p1 <- ggplot(B, aes(x = pairClass, y = Fluid_Volume_mm3)) +
-    geom_boxplot()
-p1
+# select which variables to plot
+C <- gather(B,
+            value = "Volume_mm3",
+            key = "Structure",
+            LatVentricles,
+            Ventricles,
+            Fluid,
+            pTBV,
+            eTBV,
+            eTIV,
+            Pallidum,
+            `Right-Pallidum_Volume_mm3`,
+            `Left-Pallidum_Volume_mm3`,
+            Amygdala)
 
-# p2 <- ggplot(report, aes(x = Variable))
+# define order of Structures on facet plot
+C$Structure %<>% factor(levels = c(
+    "LatVentricles",
+    "Ventricles",
+    "Fluid",
+    "pTBV",
+    "eTBV",
+    "eTIV",
+    "Pallidum",
+    "Right-Pallidum_Volume_mm3",
+    "Left-Pallidum_Volume_mm3",
+    "Amygdala"
+))
+
+p2 <- ggplot(C,
+             aes(x = pairClass,
+                 y = Volume_mm3)) +
+    geom_boxplot() +
+    facet_wrap(~ Structure, scales = "free", ncol = 3) +
+    scale_x_discrete(limits = rev(levels(B$pairClass)))
+p2
+
+ggsave("results/boxplot.pdf", width = 6, height = 12, scale = 2)
+
 
 # fishing expedition below ------------------------------------------------
 
