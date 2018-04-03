@@ -158,7 +158,6 @@ Report <- function(variable,
 RelDifference <- function(x) {
     x[B$pairClass == "case"] %>%
         `/`(x[B$pairClass == "control"]) %>%
-        `-`(1) %>%
         return()
 }
 
@@ -325,7 +324,7 @@ boxplot_reldiff <- ggplot(Dr,
                           aes(x = Structure,
                               y = Relative_Difference)) +
     geom_boxplot() +
-    scale_y_continuous(limits = c(-2, 5))
+    scale_y_continuous(limits = c(0, 5))
 boxplot_reldiff
 
 ggsave("results/boxplot_reldiff.pdf", width = 6, height = 3, scale = 3)
