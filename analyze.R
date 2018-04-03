@@ -1,7 +1,11 @@
 library(magrittr)
 library(effsize)
+library(ggplot2)
+# library(nortest)
 
-#### import merged data ####
+
+# import merged data ------------------------------------------------------
+
 A <- read.csv("data/A.csv", check.names = FALSE)
 
 ASEG_structures <- unlist(read.table("data/ASEG_structures.txt"),
@@ -18,7 +22,10 @@ APARC_measures <- unlist(read.table("data/APARC_measures.txt"),
 APARC_globals <- unlist(read.table("data/APARC_globals.txt"),
                            use.names = FALSE)
 
-# add summed structures as variables to A.
+
+# create variables: summed structures -------------------------------------
+
+# TODO simpler but less consistent names without "_Volume_mm3"?
 # Lateral Ventricles
 A$LatVentricles_Volume_mm3 <- 
     A$`Left-Lateral-Ventricle_Volume_mm3` +
@@ -45,18 +52,52 @@ A$Pallidum_Volume_mm3 <-
     A$`Left-Pallidum_Volume_mm3` +
     A$`Right-Pallidum_Volume_mm3`
 
+# Amygdala
+A$Amygdala_Volume_mm3 <-
+    A$`Left-Amygdala_Volume_mm3` +
+    A$`Right-Amygdala_Volume_mm3`
 
-# sort by pairNumber, exclude not matched
+# precise Total Brain Volume
+# attempt to construct absent BrainSegNotVent from other values
+A$pTBV <- 
+    A$SupraTentorialVol +
+    A$`Left-Cerebellum-White-Matter_Volume_mm3` +
+    A$`Left-Cerebellum-Cortex_Volume_mm3` +
+    A$`Right-Cerebellum-White-Matter_Volume_mm3` +
+    A$`Right-Cerebellum-Cortex_Volume_mm3` +
+    A$`Brain-Stem_Volume_mm3` -
+    A$LatVentricles_Volume_mm3 -
+    A$`Left-choroid-plexus_Volume_mm3` -
+    A$`Right-choroid-plexus_Volume_mm3`
+    
+# for (s in ASEG_structures) {
+#     cat("A$`", s, "_Volume_mm3` +\n", sep = "")
+# }
+# for (g in ASEG_globals) {
+#     cat("A$", g, " +\n", sep = "")
+# }
+
+# estimated Total Brain Volume
+# based on eTIV
+A$eTBV <- A$IntraCranialVol - A$Fluid_Volume_mm3
+
+# estimated Total Intracranial Volume
+# new name for consistency with pTBV and eTBV
+A$eTIV <- A$IntraCranialVol
+
+# sort and exclude unmatched ----------------------------------------------
+
 B <- A[order(A$pairNumber, A$pairClass), ]
 B <- B[B$matched, ]
-
 
 # verify proper sorting
 all(B$pairNumber[B$pairClass == "control"] ==
         B$pairNumber[B$pairClass == "case"])
 
 
-#### functions ####
+
+# functions ---------------------------------------------------------------
+
 # retrieve Aseg and Aparc data
 GetAsegValue <- function(sub_id, struct, meas){
     return(A[match(sub_id, A$SUB_ID),
@@ -76,37 +117,117 @@ wilcox.cvc <- function(x) {
                        paired = TRUE))
 }
 
-# print case-vs-control differences: wilcox.test, cohen.d, mean ± sd
-PrintDifference <- function(x, paired = FALSE) {
-    w <- wilcox.test(x ~ B$pairClass, paired = paired)$p.value %>% round(4)
-    d <- cohen.d(x ~ B$pairClass, paired = paired)$estimate %>% round(4)
-    m0 <- median(x[B$pairClass == "control"]) %>% round()
-    m1 <- median(x[B$pairClass == "case"]) %>% round()
-    s0 <- IQR(x[B$pairClass == "control"]) %>% round()
-    s1 <- IQR(x[B$pairClass == "case"]) %>% round()
+# print case-vs-control differences: wilcox.test, cohen.d, median [1Q - 3Q]
+PrintDifference <- function(x, round = 0, wp = FALSE, dp = FALSE) {
+    w <- wilcox.test(x ~ B$pairClass, paired = wp)$p.value %>% round(4)
+    d <- cohen.d(x ~ B$pairClass, paired = dp)
     
-    cat("Wilcox:", w, "|",
-        "Cohen's d:", d, "|",
-        "control:", m0, "±", s0, "|",
-        "case:", m1, "±", s1, "\n")
+    q_control <- quantile(x[B$pairClass == "control"]) %>% round(round)
+    q_case <- quantile(x[B$pairClass == "case"]) %>% round(round)
+    
+    cat("Wilcox: \t", w, "\n",
+        
+        "d:      \t", round(d$estimate, 4),
+        "\t[", round(d$conf.int[1], 4), " : ", round(d$conf.int[2], 4), "]\n",
+        
+        "control:\t", q_control[3],
+        "\t[", q_control[2], " : ", q_control[4], "]\n",
+        
+        "case:   \t", q_case[3],
+        "\t[", q_case[2], " : ", q_case[4], "]\n",
+        
+        sep = "")
 }
 
-#### interesting things ####
+# generate a table with results
+GenerateReport <- function(variable,
+                           wilcox_paired = FALSE,
+                           d_paired = FALSE,
+                           p = 0.05,
+                           digits = 4) {
+    
+    x <- B[ , match(variable, names(B))]
+    
+    w <- wilcox.test(x ~ B$pairClass, paired = wilcox_paired)
+    d <- cohen.d(x ~ B$pairClass, paired = d_paired)
+    
+    q_control <- quantile(x[B$pairClass == "control"])
+    q_case <- quantile(x[B$pairClass == "case"])
+    
+    c(
+        "Variable" = variable,
+        
+        "Wilcox_p.value" = w$p.value %>% round(digits),
+        "Wilcox_significant" = w$p.value < p,
+        
+        "Cohens_d" = d$estimate[[1]] %>% round(digits),
+        "Cohens_d_CI_inf" = d$conf.int[[1]] %>% round(digits),
+        "Cohens_d_CI_sup" = d$conf.int[[2]] %>% round(digits),
+        
+        "control_median" = q_control[[3]],
+        "control_1Q" = q_control[[2]],
+        "control_3Q" = q_control[[4]],
+        
+        "case_median" = q_case[[3]],
+        "case_1Q" = q_case[[2]],
+        "case_3Q" = q_case[[4]]
+    ) %>% return
+}
+
+
+# interesting things ------------------------------------------------------    
+
+# wilcox.test and cohen.d paired
+wp = TRUE
+dp = FALSE
+
+# generate a report table
+c(
+    "LatVentricles_Volume_mm3",
+    "Ventricles_Volume_mm3",
+    "Fluid_Volume_mm3",
+    "pTBV",
+    "eTBV",
+    "eTIV",
+    "Pallidum_Volume_mm3",
+    "Right-Pallidum_Volume_mm3",
+    "Left-Pallidum_Volume_mm3",
+    "Amygdala_Volume_mm3"
+) %>% 
+    sapply(GenerateReport, wilcox_paired = wp, d_paired = dp) %>%
+    t -> report
+View(report)
+write.csv(report, file = "results/report.csv", row.names = FALSE)
+# read.csv("results/report.csv") %>% View("report")
+
+# print report to console
 # Ventricles/CSF
-PrintDifference(B$LatVentricles_Volume_mm3)
-PrintDifference(B$Ventricles_Volume_mm3)
-PrintDifference(B$Fluid_Volume_mm3)
+PrintDifference(B$LatVentricles_Volume_mm3, wp = wp, dp = dp)
+PrintDifference(B$Ventricles_Volume_mm3, wp = wp, dp = dp)
+PrintDifference(B$Fluid_Volume_mm3, wp = wp, dp = dp)
 
 # Pallidum
-PrintDifference(B$Pallidum_Volume_mm3)
-PrintDifference(B$`Right-Pallidum_Volume_mm3`)
-PrintDifference(B$`Left-Pallidum_Volume_mm3`)
+PrintDifference(B$Pallidum_Volume_mm3, wp = wp, dp = dp)
+PrintDifference(B$`Right-Pallidum_Volume_mm3`, wp = wp, dp = dp)
+PrintDifference(B$`Left-Pallidum_Volume_mm3`, wp = wp, dp = dp)
 
 # Amygdala
-PrintDifference(B$`Left-Amygdala_Volume_mm3` + B$`Right-Amygdala_Volume_mm3`)
+PrintDifference(B$Amygdala_Volume_mm3,
+                wp = wp, dp = dp)
 
 
-#### CC area ####
+# plots -------------------------------------------------------------------
+
+p1 <- ggplot(B, aes(x = pairClass, y = Fluid_Volume_mm3)) +
+    geom_boxplot()
+p1
+
+# p2 <- ggplot(report, aes(x = Variable))
+
+# fishing expedition below ------------------------------------------------
+
+# CC area -----------------------------------------------------------------
+
 wilcox.cvc(B$CC_area)
 
 # difference realive to control
@@ -119,7 +240,8 @@ sd(CC_area_RelDiff)
 
 
 
-#### CC area ~ volume of brain structures ####
+# CC area ~ volume of brain structures ------------------------------------
+
 ## volume only - individual structures
 for (structure in ASEG_structures) {
     control_all <- GetAsegValue(B$SUB_ID[B$pairClass == "control"],
@@ -213,7 +335,8 @@ for (global in ASEG_globals) {
 
 
 
-#### CC area ~ surface area of cortical structures ####
+# CC area ~ surface area of cortical structures ---------------------------
+
 ## surface only - individual structures
 for (structure in APARC_structures) {
     for (hemisphere in c("rh", "lh")) {
