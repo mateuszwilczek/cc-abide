@@ -118,28 +118,6 @@ wilcox.cvc <- function(x) {
                        paired = TRUE))
 }
 
-# print case-vs-control differences: wilcox.test, cohen.d, median [1Q - 3Q]
-# TODO forget and use Report() instead
-PrintDifference <- function(x, round = 0, wp = FALSE, dp = FALSE) {
-    w <- wilcox.test(x ~ B$pairClass, paired = wp)$p.value %>% round(4)
-    d <- cohen.d(x ~ B$pairClass, paired = dp)
-    
-    q_control <- quantile(x[B$pairClass == "control"]) %>% round(round)
-    q_case <- quantile(x[B$pairClass == "case"]) %>% round(round)
-    
-    cat("Wilcox: \t", w, "\n",
-        
-        "d:      \t", round(d$estimate, 4),
-        "\t[", round(d$conf.int[1], 4), " : ", round(d$conf.int[2], 4), "]\n",
-        
-        "control:\t", q_control[3],
-        "\t[", q_control[2], " : ", q_control[4], "]\n",
-        
-        "case:   \t", q_case[3],
-        "\t[", q_case[2], " : ", q_case[4], "]\n",
-        
-        sep = "")
-}
 
 # generate a table with results
 Report <- function(variable,
@@ -176,8 +154,70 @@ Report <- function(variable,
     ) %>% return
 }
 
+# difference from control
+RelDifference <- function(x) {
+    x[B$pairClass == "case"] %>%
+        `/`(x[B$pairClass == "control"]) %>%
+        `-`(1) %>%
+        return()
+}
 
-# interesting things ------------------------------------------------------    
+AbsDifference <- function(x) {
+    x[B$pairClass == "case"] %>%
+        `-`(x[B$pairClass == "control"]) %>%
+        return()
+}
+
+
+# create df with deltas ---------------------------------------------------
+
+D <- B[B$pairClass == "control", match("AGE", names(B))] %>% data.frame()
+names(D)[1] <- "AGE_control"
+
+# verify
+all(D$AGE_control == B$AGE[B$pairClass == "control"])
+
+# add more columns to D
+# basic metrics
+D$AGE_case <- B$AGE[B$pairClass == "case"]
+D$SEX <- B$SEX[B$pairClass == "control"]
+
+# Fluid
+D$LatVentricles_Rel <- RelDifference(B$LatVentricles)
+D$LatVentricles_Abs <- AbsDifference(B$LatVentricles)
+
+D$Ventricles_Rel <- RelDifference(B$Ventricles)
+D$Ventricles_Abs <- AbsDifference(B$Ventricles)
+
+D$Fluid_Rel <- RelDifference(B$Fluid)
+D$Fluid_Abs <- AbsDifference(B$Fluid)
+
+# Total Volulmes
+D$pTBV_Rel <- RelDifference(B$pTBV)
+D$pTBV_Abs <- AbsDifference(B$pTBV)
+
+D$eTBV_Rel <- RelDifference(B$eTBV)
+D$eTBV_Abs <- AbsDifference(B$eTBV)
+
+D$eTIV_Rel <- RelDifference(B$eTIV)
+D$eTIV_Abs <- AbsDifference(B$eTIV)
+
+# Pallidum
+D$Pallidum_Rel <- RelDifference(B$Pallidum)
+D$Pallidum_Abs <- AbsDifference(B$Pallidum)
+
+D$R_Pallidum_Rel <- RelDifference(B$`Right-Pallidum_Volume_mm3`)
+D$R_Pallidum_Abs <- AbsDifference(B$`Right-Pallidum_Volume_mm3`)
+
+D$L_Pallidum_Rel <- RelDifference(B$`Left-Pallidum_Volume_mm3`)
+D$L_Pallidum_Abs <- AbsDifference(B$`Left-Pallidum_Volume_mm3`)
+
+# Amygdala
+D$Amygdala_Rel <- RelDifference(B$Amygdala)
+D$Amygdala_Abs <- AbsDifference(B$Amygdala)
+
+
+# report ------------------------------------------------------------------    
 
 # wilcox.test and cohen.d paired
 wp = TRUE
@@ -205,6 +245,7 @@ write.csv(report, file = "results/report.csv", row.names = FALSE)
 
 # plots -------------------------------------------------------------------
 
+# boxplot with volumes
 # select which variables to plot
 C <- gather(B,
             value = "Volume_mm3",
@@ -220,7 +261,7 @@ C <- gather(B,
             `Left-Pallidum_Volume_mm3`,
             Amygdala)
 
-# define order of Structures on facet plot
+# define order of Structures on plot
 C$Structure %<>% factor(levels = c(
     "LatVentricles",
     "Ventricles",
@@ -234,15 +275,75 @@ C$Structure %<>% factor(levels = c(
     "Amygdala"
 ))
 
-p2 <- ggplot(C,
-             aes(x = pairClass,
-                 y = Volume_mm3)) +
+boxplot_volumes <- ggplot(C,
+                          aes(x = pairClass,
+                              y = Volume_mm3)) +
     geom_boxplot() +
-    facet_wrap(~ Structure, scales = "free", ncol = 3) +
+    facet_wrap( ~ Structure, scales = "free", ncol = 3) +
     scale_x_discrete(limits = rev(levels(B$pairClass)))
-p2
+boxplot_volumes
 
-ggsave("results/boxplot.pdf", width = 6, height = 12, scale = 2)
+ggsave("results/boxplot_volumes.pdf", width = 6, height = 12, scale = 2)
+
+# sex by color
+boxplot_volumes_sex <- boxplot_volumes + aes(color = SEX)
+boxplot_volumes_sex
+ggsave("results/boxplot_volumes_sex.pdf", width = 6, height = 12, scale = 2)
+
+# boxplot with relative deltas
+# select variables to plot
+Dr <- gather(D,
+             value = "Relative_Difference",
+             key = "Structure",
+             LatVentricles_Rel,
+             Ventricles_Rel,
+             Fluid_Rel,
+             pTBV_Rel,
+             eTBV_Rel,
+             eTIV_Rel,
+             Pallidum_Rel,
+             R_Pallidum_Rel,
+             L_Pallidum_Rel,
+             Amygdala_Rel)
+
+# define order of Structures
+Dr$Structure %<>% factor(levels = c(
+    "LatVentricles_Rel",
+    "Ventricles_Rel",
+    "Fluid_Rel",
+    "pTBV_Rel",
+    "eTBV_Rel",
+    "eTIV_Rel",
+    "Pallidum_Rel",
+    "R_Pallidum_Rel",
+    "L_Pallidum_Rel",
+    "Amygdala_Rel"
+))
+
+
+boxplot_reldiff <- ggplot(Dr,
+                          aes(x = Structure,
+                              y = Relative_Difference)) +
+    geom_boxplot() +
+    scale_y_continuous(limits = c(-2, 5))
+boxplot_reldiff
+
+ggsave("results/boxplot_reldiff.pdf", width = 6, height = 3, scale = 3)
+
+# sex by color
+boxplot_reldiff_sex <- boxplot_reldiff + aes(color = SEX)
+boxplot_reldiff_sex
+ggsave("results/boxplot_reldiff_sex.pdf", width = 6, height = 3, scale = 3)
+
+# Fluid_Rel vs AGE
+plot_fluidrel_age <- ggplot(D,
+                            aes(x = AGE_control,
+                                y = Fluid_Rel)) +
+    geom_point() +
+    geom_smooth(span = 1)
+plot_fluidrel_age
+
+ggsave("results/plot_fluidrel_age.pdf", width = 6, height = 3, scale = 3)
 
 
 # fishing expedition below ------------------------------------------------
