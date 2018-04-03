@@ -157,7 +157,9 @@ Report <- function(variable,
 # difference from control
 RelDifference <- function(x) {
     x[B$pairClass == "case"] %>%
-        `/`(x[B$pairClass == "control"]) %>%
+        `-`(x[B$pairClass == "control"]) %>%
+        `/`(x[B$pairClass == "case"] + x[B$pairClass == "control"]) %>%
+        `*`(200) %>%
         return()
 }
 
@@ -324,7 +326,7 @@ boxplot_reldiff <- ggplot(Dr,
                           aes(x = Structure,
                               y = Relative_Difference)) +
     geom_boxplot() +
-    scale_y_continuous(limits = c(0, 5))
+    scale_y_continuous(name = "Relative Difference as % of mean\n(case - control) / (case + control) * 200")
 boxplot_reldiff
 
 ggsave("results/boxplot_reldiff.pdf", width = 6, height = 3, scale = 3)
@@ -339,7 +341,9 @@ plot_fluidrel_age <- ggplot(D,
                             aes(x = AGE_control,
                                 y = Fluid_Rel)) +
     geom_point() +
-    geom_smooth(span = 1)
+    geom_smooth(span = 1) +
+    scale_x_continuous(name = "Age") +
+    scale_y_continuous(name = "Fluid Volume: Relative Difference as % of mean\n(case - control) / (case + control) * 200")
 plot_fluidrel_age
 
 ggsave("results/plot_fluidrel_age.pdf", width = 6, height = 3, scale = 3)
