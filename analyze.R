@@ -217,6 +217,15 @@ D$L_Pallidum_Abs <- AbsDifference(B$`Left-Pallidum_Volume_mm3`)
 D$Amygdala_Rel <- RelDifference(B$Amygdala)
 D$Amygdala_Abs <- AbsDifference(B$Amygdala)
 
+# Full Scale IQ
+D$FIQ_Rel <- RelDifference(B$FIQ)
+
+# Verbal IQ
+D$VIQ_Rel <- RelDifference(B$VIQ)
+
+# Performance IQ
+D$PIQ_Rel <- RelDifference(B$PIQ)
+
 
 # report ------------------------------------------------------------------    
 
@@ -284,12 +293,12 @@ boxplot_volumes <- ggplot(C,
     scale_x_discrete(limits = rev(levels(B$pairClass)))
 boxplot_volumes
 
-ggsave("results/boxplot_volumes.pdf", width = 6, height = 12, scale = 2)
+ggsave("results/plots/boxplot_Volumes.pdf", width = 6, height = 12, scale = 2)
 
 # sex by color
 boxplot_volumes_sex <- boxplot_volumes + aes(color = SEX)
 boxplot_volumes_sex
-ggsave("results/boxplot_volumes_sex.pdf", width = 6, height = 12, scale = 2)
+ggsave("results/plots/boxplot_Volumes.Sex.pdf", width = 6, height = 12, scale = 2)
 
 # boxplot with relative deltas
 # select variables to plot
@@ -330,34 +339,71 @@ boxplot_reldiff <- ggplot(Dr,
     theme_bw()  
 boxplot_reldiff
 
-ggsave("results/boxplot_reldiff.pdf", width = 6, height = 3, scale = 3)
+ggsave("results/plots/boxplot_Delta.pdf", width = 6, height = 3, scale = 3)
 
 # sex by color
 boxplot_reldiff_sex <- boxplot_reldiff + aes(color = SEX)
 boxplot_reldiff_sex
-ggsave("results/boxplot_reldiff_sex.pdf", width = 6, height = 3, scale = 3)
+ggsave("results/plots/boxplot_Delta.Sex.pdf", width = 6, height = 3, scale = 3)
 
 
 
 # scatter plots -----------------------------------------------------------
 
-# Fluid_Rel vs AGE
-plot_fluidrel_age <- ggplot(D,
-                            aes(x = AGE_control,
-                                y = Fluid_Rel)) +
-    geom_point(size = .8) +
-    geom_smooth(span = 1, color = "black") +
-    theme_bw() +
-    scale_x_continuous(name = "Age") +
-    scale_y_continuous(name = "Fluid Volume:\nRelative Difference as % of mean\n(case - control) / (case + control) * 200")
-plot_fluidrel_age
+ScatterPlotDelta <- function(variable) {
+    variable_name <- paste0(variable, "_Rel")
+    y_data <- D[ , match(variable_name, names(D))]
+    title <- paste0("Relative difference in ",
+                    variable,
+                    " in matched pairs vs Age")
+    
+    # base scatterplot
+    scatterplot_variable.Age <- ggplot(D,
+                                       aes(x = AGE_control,
+                                           y = y_data)) +
+        geom_point(size = .8) +
+        geom_smooth(span = 1, color = "black", size = .5, fill = "grey80") +
+        theme_bw() +
+        scale_x_continuous(name = "Age") +
+        scale_y_continuous(
+            name = paste0(
+                variable,
+                ":\n",
+                "relative difference as % of mean\n",
+                "(case - control) / (case + control) * 200"
+            )
+        ) +
+        ggtitle(paste0(title, " - all subjects"))
+    
+    # save plot
+    paste0("results/plots/scatterplot_", variable, ".Age.png") %>%
+        ggsave(scatterplot_variable.Age, width = 12, height = 6)
+    
+    # facet by Sex
+    scatterplot_variable.Age.Sex <-
+        scatterplot_variable.Age +
+        facet_wrap( ~ SEX) +
+        ggtitle(paste0(title, " - separate by sex"))
+    
+    # save faceted
+    paste0("results/plots/scatterplot_", variable, ".Age.Sex.png") %>%
+        ggsave(scatterplot_variable.Age.Sex, width = 12, height = 6)
+}
 
-ggsave("results/plot_fluidrel_age.png")
+# generate scatterplots
+# "Fluid" %>% ScatterPlotDelta()
 
-# facet by sex
-plot_fluidrel_age_bySex <- plot_fluidrel_age + facet_wrap( ~ SEX)
-plot_fluidrel_age_bySex
-ggsave("results/plot_fluidrel_age_bySex.png")
+c(
+    "LatVentricles",
+    "Ventricles",
+    "Fluid",
+    "pTBV",
+    "eTBV",
+    "eTIV",
+    "Pallidum",
+    "Amygdala"
+) %>%
+    sapply(ScatterPlotDelta)
 
 # fishing expedition below ------------------------------------------------
 
