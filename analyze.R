@@ -23,6 +23,12 @@ APARC_measures <- unlist(read.table("data/APARC_measures.txt"),
 APARC_globals <- unlist(read.table("data/APARC_globals.txt"),
                         use.names = FALSE)
 
+# change -9999 to NA in IQ
+A$FIQ[A$FIQ == -9999] <- NA
+A$VIQ[A$VIQ == -9999] <- NA
+A$PIQ[A$PIQ == -9999] <- NA
+
+
 
 # create variables: summed structures -------------------------------------
 
@@ -350,13 +356,21 @@ ggsave("results/plots/boxplot_Delta.Sex.pdf", width = 6, height = 3, scale = 3)
 
 # scatter plots -----------------------------------------------------------
 
-ScatterPlotDelta <- function(variable) {
+ScatterPlotDelta <- function(variable,
+                             na.rm = FALSE) {
+    
     variable_name <- paste0(variable, "_Rel")
+    
     y_data <- D[ , match(variable_name, names(D))]
+    
+    # TODO omit NA somehow
+    # if (na.rm) {
+    # 
+    # }
+    
     title <- paste0("Relative difference in ",
                     variable,
                     " in matched pairs vs Age")
-    
     # base scatterplot
     scatterplot_variable.Age <- ggplot(D,
                                        aes(x = AGE_control,
@@ -392,6 +406,7 @@ ScatterPlotDelta <- function(variable) {
 
 # generate scatterplots
 # "Fluid" %>% ScatterPlotDelta()
+# "FIQ" %>% ScatterPlotDelta(na.rm = TRUE)
 
 c(
     "LatVentricles",
@@ -404,6 +419,12 @@ c(
     "Amygdala"
 ) %>%
     sapply(ScatterPlotDelta)
+
+
+
+    # geom_point(aes(shape=Gender)) +
+    # scale_shape_manual(values = c(16, 21))
+
 
 # fishing expedition below ------------------------------------------------
 
