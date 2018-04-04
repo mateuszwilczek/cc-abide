@@ -1,5 +1,5 @@
-library(magrittr)
 library(effsize)
+library(magrittr)
 library(ggplot2)
 library(tidyr)
 # library(nortest)
@@ -244,7 +244,7 @@ write.csv(report, file = "results/report.csv", row.names = FALSE)
 # read.csv("results/report.csv") %>% View("report.csv")
 
 
-# plots -------------------------------------------------------------------
+# box plots ---------------------------------------------------------------
 
 # boxplot with volumes
 # select which variables to plot
@@ -326,7 +326,8 @@ boxplot_reldiff <- ggplot(Dr,
                           aes(x = Structure,
                               y = Relative_Difference)) +
     geom_boxplot() +
-    scale_y_continuous(name = "Relative Difference as % of mean\n(case - control) / (case + control) * 200")
+    scale_y_continuous(name = "Relative Difference as % of mean\n(case - control) / (case + control) * 200") +
+    theme_bw()  
 boxplot_reldiff
 
 ggsave("results/boxplot_reldiff.pdf", width = 6, height = 3, scale = 3)
@@ -336,18 +337,27 @@ boxplot_reldiff_sex <- boxplot_reldiff + aes(color = SEX)
 boxplot_reldiff_sex
 ggsave("results/boxplot_reldiff_sex.pdf", width = 6, height = 3, scale = 3)
 
+
+
+# scatter plots -----------------------------------------------------------
+
 # Fluid_Rel vs AGE
 plot_fluidrel_age <- ggplot(D,
                             aes(x = AGE_control,
                                 y = Fluid_Rel)) +
-    geom_point() +
-    geom_smooth(span = 1) +
+    geom_point(size = .8) +
+    geom_smooth(span = 1, color = "black") +
+    theme_bw() +
     scale_x_continuous(name = "Age") +
-    scale_y_continuous(name = "Fluid Volume: Relative Difference as % of mean\n(case - control) / (case + control) * 200")
+    scale_y_continuous(name = "Fluid Volume:\nRelative Difference as % of mean\n(case - control) / (case + control) * 200")
 plot_fluidrel_age
 
-ggsave("results/plot_fluidrel_age.pdf", width = 6, height = 3, scale = 3)
+ggsave("results/plot_fluidrel_age.png")
 
+# facet by sex
+plot_fluidrel_age_bySex <- plot_fluidrel_age + facet_wrap( ~ SEX)
+plot_fluidrel_age_bySex
+ggsave("results/plot_fluidrel_age_bySex.png")
 
 # fishing expedition below ------------------------------------------------
 
