@@ -129,26 +129,35 @@ wilcox.cvc <- function(x) {
 Report <- function(variable,
                    wilcox_paired = FALSE,
                    d_paired = FALSE,
-                   alpha = 0.05,
                    digits = 4) {
     
+    # data to be analyzed
     x <- B[ , match(variable, names(B))]
     
-    w <- wilcox.test(x ~ B$pairClass, paired = wilcox_paired)
-    d <- cohen.d(x ~ B$pairClass, paired = d_paired)
+    # statistical test
+    w <- wilcox.test(x[B$pairClass == "control"],
+                     x[B$pairClass == "case"],
+                     paired = wilcox_paired)
     
-    q_control <- quantile(x[B$pairClass == "control"])
-    q_case <- quantile(x[B$pairClass == "case"])
+    d <- cohen.d(x[B$pairClass == "control"],
+                 x[B$pairClass == "case"],
+                 paired = d_paired,
+                 na.rm = TRUE)
+    
+    # quantiles
+    q_control <- quantile(x[B$pairClass == "control"], na.rm = TRUE)
+    q_case <- quantile(x[B$pairClass == "case"], na.rm = TRUE)
     
     c(
         "Variable" = variable,
         
         "Wilcox_p.value" = w$p.value %>% round(digits),
-        "Wilcox_significant" = w$p.value < alpha,
+        "Wilcox_paired" = wilcox_paired,
         
         "Cohens_d" = d$estimate[[1]] %>% round(digits),
         "Cohens_d_CI_inf" = d$conf.int[[1]] %>% round(digits),
         "Cohens_d_CI_sup" = d$conf.int[[2]] %>% round(digits),
+        "Cohens_d_paired" = d_paired,
         
         "control_median" = q_control[[3]],
         "control_1Q" = q_control[[2]],
@@ -185,6 +194,7 @@ names(D)[1] <- "AGE_control"
 all(D$AGE_control == B$AGE[B$pairClass == "control"])
 
 # add more columns to D
+# TODO automate
 # basic metrics
 D$AGE_case <- B$AGE[B$pairClass == "case"]
 D$SEX <- B$SEX[B$pairClass == "control"]
@@ -235,7 +245,7 @@ D$PIQ_Rel <- RelDifference(B$PIQ)
 
 # report ------------------------------------------------------------------    
 
-# wilcox.test and cohen.d paired
+# should Wilcox and Cohen's d be paired?
 wp = TRUE
 dp = FALSE
 
@@ -250,7 +260,10 @@ c(
     "Pallidum",
     "Right-Pallidum_Volume_mm3",
     "Left-Pallidum_Volume_mm3",
-    "Amygdala"
+    "Amygdala",
+    "FIQ",
+    "VIQ",
+    "PIQ"
 ) %>% 
     sapply(Report, wilcox_paired = wp, d_paired = dp, USE.NAMES = FALSE) %>%
     t -> report
@@ -297,14 +310,16 @@ boxplot_volumes <- ggplot(C,
     geom_boxplot() +
     facet_wrap( ~ Structure, scales = "free", ncol = 3) +
     scale_x_discrete(limits = rev(levels(B$pairClass)))
-boxplot_volumes
+# boxplot_volumes
 
-ggsave("results/plots/boxplot_Volumes.pdf", width = 6, height = 12, scale = 2)
+ggsave("results/plots/boxplot_Volumes.png", plot = boxplot_volumes, 
+       width = 8, height = 12)
 
 # sex by color
 boxplot_volumes_sex <- boxplot_volumes + aes(color = SEX)
-boxplot_volumes_sex
-ggsave("results/plots/boxplot_Volumes.Sex.pdf", width = 6, height = 12, scale = 2)
+# boxplot_volumes_sex
+ggsave("results/plots/boxplot_Volumes.Sex.png", plot = boxplot_volumes_sex,
+       width = 8, height = 12)
 
 # boxplot with relative deltas
 # select variables to plot
@@ -343,30 +358,28 @@ boxplot_reldiff <- ggplot(Dr,
     geom_boxplot() +
     scale_y_continuous(name = "Relative Difference as % of mean\n(case - control) / (case + control) * 200") +
     theme_bw()  
-boxplot_reldiff
+# boxplot_reldiff
 
-ggsave("results/plots/boxplot_Delta.pdf", width = 6, height = 3, scale = 3)
+ggsave("results/plots/boxplot_Delta.png", plot = boxplot_reldiff,
+       width = 12, height = 6)
 
 # sex by color
 boxplot_reldiff_sex <- boxplot_reldiff + aes(color = SEX)
-boxplot_reldiff_sex
-ggsave("results/plots/boxplot_Delta.Sex.pdf", width = 6, height = 3, scale = 3)
+# boxplot_reldiff_sex
+ggsave("results/plots/boxplot_Delta.Sex.png", plot = boxplot_reldiff_sex,
+       width = 12, height = 6)
 
 
 
 # scatter plots -----------------------------------------------------------
 
-ScatterPlotDelta <- function(variable,
-                             na.rm = FALSE) {
+# Variable Delta vs Age
+ScatterPlotDelta <- function(variable) {
     
     variable_name <- paste0(variable, "_Rel")
     
     y_data <- D[ , match(variable_name, names(D))]
     
-    # TODO omit NA somehow
-    # if (na.rm) {
-    # 
-    # }
     
     title <- paste0("Relative difference in ",
                     variable,
@@ -406,7 +419,7 @@ ScatterPlotDelta <- function(variable,
 
 # generate scatterplots
 # "Fluid" %>% ScatterPlotDelta()
-# "FIQ" %>% ScatterPlotDelta(na.rm = TRUE)
+"FIQ" %>% ScatterPlotDelta(na.rm = FALSE)
 
 c(
     "LatVentricles",
@@ -416,7 +429,10 @@ c(
     "eTBV",
     "eTIV",
     "Pallidum",
-    "Amygdala"
+    "Amygdala",
+    "FIQ",
+    "VIQ",
+    "PIQ"
 ) %>%
     sapply(ScatterPlotDelta)
 
@@ -424,6 +440,20 @@ c(
 
     # geom_point(aes(shape=Gender)) +
     # scale_shape_manual(values = c(16, 21))
+
+# Variable vs IQ by group
+scatterplot_Variable.IQ.Group <- ggplot(B,
+                                        aes(x = FIQ,
+                                            y = Fluid,
+                                            color = pairClass)) +
+    geom_point() +
+    geom_smooth() +
+    theme_bw()
+# scatterplot_Variable.IQ.Group
+ggsave("results/plots/scatterplot_Fluid.IQ.Group.png",
+       plot = scatterplot_Variable.IQ.Group,
+       width = 12,
+       height = 6)
 
 
 # fishing expedition below ------------------------------------------------
