@@ -23,7 +23,7 @@ APARC_measures <- unlist(read.table("data/APARC_measures.txt"),
 APARC_globals <- unlist(read.table("data/APARC_globals.txt"),
                         use.names = FALSE)
 
-# change -9999 to NA in IQ
+# change IQ values of `-9999` to `NA`
 A$FIQ[A$FIQ == -9999] <- NA
 A$VIQ[A$VIQ == -9999] <- NA
 A$PIQ[A$PIQ == -9999] <- NA
@@ -31,6 +31,7 @@ A$PIQ[A$PIQ == -9999] <- NA
 
 
 # create variables: summed structures -------------------------------------
+# TODO could use dplyr::mutate()
 
 # # print all existing ASEG variable names
 # for (s in ASEG_structures) {
@@ -129,6 +130,7 @@ wilcox.cvc <- function(x) {
 Report <- function(variable,
                    wilcox_paired = FALSE,
                    d_paired = FALSE,
+                   alpha = .05,
                    digits = 4) {
     
     # data to be analyzed
@@ -152,6 +154,7 @@ Report <- function(variable,
         "Variable" = variable,
         
         "Wilcox_p.value" = w$p.value %>% round(digits),
+        "Wilcox_significant" = w$p.value < alpha,
         "Wilcox_paired" = wilcox_paired,
         
         "Cohens_d" = d$estimate[[1]] %>% round(digits),
@@ -166,8 +169,9 @@ Report <- function(variable,
         "case_median" = q_case[[3]],
         "case_1Q" = q_case[[2]],
         "case_3Q" = q_case[[4]]
-    ) %>% return
+    ) %>% return()
 }
+
 
 # difference from control
 RelDifference <- function(x) {
@@ -243,13 +247,16 @@ D$VIQ_Rel <- RelDifference(B$VIQ)
 D$PIQ_Rel <- RelDifference(B$PIQ)
 
 
+
+# ^^^^ run above to initiate workspace ^^^^ -------------------------------
+
 # report ------------------------------------------------------------------    
 
 # should Wilcox and Cohen's d be paired?
 wp = TRUE
 dp = FALSE
 
-# generate a report table
+# generate report for variables of interest
 c(
     "LatVentricles",
     "Ventricles",
@@ -267,9 +274,32 @@ c(
 ) %>% 
     sapply(Report, wilcox_paired = wp, d_paired = dp, USE.NAMES = FALSE) %>%
     t -> report
+
 View(report)
-write.csv(report, file = "results/report.csv", row.names = FALSE)
-# read.csv("results/report.csv") %>% View("report.csv")
+write.csv(report, file = "results/report.csv",
+          row.names = FALSE)
+
+
+# generate report for all Aseg globals
+ASEG_globals %>%
+    as.character() %>%
+    sapply(Report, wilcox_paired = wp, d_paired = dp, USE.NAMES = FALSE) %>%
+    t -> report_ASEG_globals
+
+View(report_ASEG_globals)
+write.csv(report_ASEG_globals, file = "results/report_ASEG_globals.csv",
+          row.names = FALSE)
+
+# generate report for all individual Aseg structures
+ASEG_structures %>%
+    as.character() %>%
+    paste0("_Volume_mm3") %>%
+    sapply(Report, wilcox_paired = wp, d_paired = dp, USE.NAMES = FALSE) %>%
+    t -> report_ASEG_structures
+
+View(report_ASEG_structures)
+write.csv(report_ASEG_structures, file = "results/report_ASEG_structures.csv",
+          row.names = FALSE)
 
 
 # box plots ---------------------------------------------------------------
@@ -473,47 +503,6 @@ sd(CC_area_RelDiff)
 
 
 # CC area ~ volume of brain structures ------------------------------------
-
-## volume only - individual structures
-for (structure in ASEG_structures) {
-    control_all <- GetAsegValue(B$SUB_ID[B$pairClass == "control"],
-                                struct = structure,
-                                meas = "Volume_mm3")
-    case_all <- GetAsegValue(B$SUB_ID[B$pairClass == "case"],
-                             struct = structure,
-                             meas = "Volume_mm3")
-    
-    # remove pairs where one value is NA
-    control <- control_all[!is.na(control_all) & !is.na(case_all)]
-    case <- case_all[!is.na(control_all) & !is.na(case_all)]
-    
-    # TODO cannot compute exact p-value with zeroes
-    test <- wilcox.test(control, case, paired = TRUE)$p.value
-    
-    if (test < 0.05) {
-        cat("control:\t", mean(control), "\t",
-            "case:\t", mean(case), "\t",
-            test, "\t", structure, "\n")
-    } else {
-        cat("nonsignificant\t", test, "\t", structure, "\n")
-    }
-}
-
-## volume only - globals
-for (global in ASEG_globals) {
-    control <- B[ , match(global, names(B))][B$pairClass == "control"]
-    case <- B[ , match(global, names(B))][B$pairClass == "case"]
-    
-    test <- wilcox.test(control, case, paired = TRUE)$p.value
-    
-    if (test < 0.05) {
-        cat("control:\t", mean(control), "\t",
-            "case:\t", mean(case), "\t",
-            test, "\t", global, "\n")
-    } else {
-        cat("nonsignificant\t", test, "\t", global, "\n")
-    }
-}
 
 ## relative to CC area - individual structures
 for (structure in ASEG_structures) {
