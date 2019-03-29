@@ -12,5 +12,4 @@ data/pcp/lh.aparc.stats/*
 data/pcp/rh.aparc.csv/*
 data/pcp/rh.aparc.stats/*
 data/pcp/freesurfer.stats.tar
-data/pcp/freesurfer.stats/*
 data/pcp/out/*

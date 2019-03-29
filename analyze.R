@@ -91,6 +91,7 @@ A$eTBV <- A$IntraCranialVol - A$Fluid
 
 # estimated Total Intracranial Volume
 # new name for consistency with pTBV and eTBV
+# VARIABLE RENAME
 A$eTIV <- A$IntraCranialVol
 
 # sort and exclude unmatched ----------------------------------------------
@@ -136,13 +137,15 @@ Report <- function(variable,
     # data to be analyzed
     x <- B[ , match(variable, names(B))]
     
-    # statistical test
+    # statistical tests
     w <- wilcox.test(x[B$pairClass == "control"],
                      x[B$pairClass == "case"],
                      paired = wilcox_paired)
     
-    d <- cohen.d(x[B$pairClass == "control"],
-                 x[B$pairClass == "case"],
+    d <- cohen.d(x[B$pairClass == "case"],
+                 x[B$pairClass == "control"],
+                 # this order of args returns difference
+                 # of case relative to control
                  paired = d_paired,
                  na.rm = TRUE)
     
@@ -253,7 +256,7 @@ D$PIQ_Rel <- RelDifference(B$PIQ)
 # report ------------------------------------------------------------------    
 
 # should Wilcox and Cohen's d be paired?
-wp = TRUE
+wp = FALSE
 dp = FALSE
 
 # generate report for variables of interest
@@ -334,20 +337,21 @@ C$Structure %<>% factor(levels = c(
     "Amygdala"
 ))
 
+# boxplot_volumes
 boxplot_volumes <- ggplot(C,
                           aes(x = pairClass,
                               y = Volume_mm3)) +
     geom_boxplot() +
-    facet_wrap( ~ Structure, scales = "free", ncol = 3) +
+    facet_wrap(vars(Structure), scales = "free", ncol = 3) +
     scale_x_discrete(limits = rev(levels(B$pairClass)))
-# boxplot_volumes
 
 ggsave("results/plots/boxplot_Volumes.png", plot = boxplot_volumes, 
        width = 8, height = 12)
 
+# boxplot_volumes_sex
 # sex by color
 boxplot_volumes_sex <- boxplot_volumes + aes(color = SEX)
-# boxplot_volumes_sex
+
 ggsave("results/plots/boxplot_Volumes.Sex.png", plot = boxplot_volumes_sex,
        width = 8, height = 12)
 
@@ -381,21 +385,21 @@ Dr$Structure %<>% factor(levels = c(
     "Amygdala_Rel"
 ))
 
-
+# boxplot_reldiff
 boxplot_reldiff <- ggplot(Dr,
                           aes(x = Structure,
                               y = Relative_Difference)) +
     geom_boxplot() +
     scale_y_continuous(name = "Relative Difference as % of mean\n(case - control) / (case + control) * 200") +
-    theme_bw()  
-# boxplot_reldiff
+    theme_bw()
 
 ggsave("results/plots/boxplot_Delta.png", plot = boxplot_reldiff,
        width = 12, height = 6)
 
+# boxplot_reldiff_sex
 # sex by color
 boxplot_reldiff_sex <- boxplot_reldiff + aes(color = SEX)
-# boxplot_reldiff_sex
+
 ggsave("results/plots/boxplot_Delta.Sex.png", plot = boxplot_reldiff_sex,
        width = 12, height = 6)
 
@@ -403,7 +407,8 @@ ggsave("results/plots/boxplot_Delta.Sex.png", plot = boxplot_reldiff_sex,
 
 # scatter plots -----------------------------------------------------------
 
-# Variable Delta vs Age
+# function to save a scatterplot of relative-difference-in-pair(age)
+# for a given variable, also a second plot faceted by sex
 ScatterPlotDelta <- function(variable) {
     
     variable_name <- paste0(variable, "_Rel")
@@ -439,7 +444,7 @@ ScatterPlotDelta <- function(variable) {
     # facet by Sex
     scatterplot_variable.Age.Sex <-
         scatterplot_variable.Age +
-        facet_wrap( ~ SEX) +
+        facet_wrap(vars(SEX)) +
         ggtitle(paste0(title, " - separate by sex"))
     
     # save faceted
@@ -447,10 +452,7 @@ ScatterPlotDelta <- function(variable) {
         ggsave(scatterplot_variable.Age.Sex, width = 12, height = 6)
 }
 
-# generate scatterplots
-# "Fluid" %>% ScatterPlotDelta()
-"FIQ" %>% ScatterPlotDelta(na.rm = FALSE)
-
+# use function above to generate scatterplots for the listed variables
 c(
     "LatVentricles",
     "Ventricles",
@@ -468,10 +470,7 @@ c(
 
 
 
-    # geom_point(aes(shape=Gender)) +
-    # scale_shape_manual(values = c(16, 21))
-
-# Variable vs IQ by group
+# scatterplot: Fluid(FIQ) colored by group
 scatterplot_Variable.IQ.Group <- ggplot(B,
                                         aes(x = FIQ,
                                             y = Fluid,
@@ -479,14 +478,14 @@ scatterplot_Variable.IQ.Group <- ggplot(B,
     geom_point() +
     geom_smooth() +
     theme_bw()
-# scatterplot_Variable.IQ.Group
+
 ggsave("results/plots/scatterplot_Fluid.IQ.Group.png",
        plot = scatterplot_Variable.IQ.Group,
        width = 12,
        height = 6)
 
 
-# fishing expedition below ------------------------------------------------
+# inconclusive attempts below  --------------------------------------------
 
 # CC area -----------------------------------------------------------------
 

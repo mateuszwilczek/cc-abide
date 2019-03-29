@@ -27,6 +27,8 @@ read.csv("data/pcp/summary.csv") %$%
     as.character %>%
     write("./data/pcp/FILE_ID.txt")
 
+# extract data/pcp/freesurfer.stats.tar.gz before running code below
+# or run data/pcp/download.sh to download patient data
 
 #### convert PCP FS aseg.stats to aseg.csv ####
 aseg.stats_colnames <- c("Index", "SegId", "NVoxels", "Volume_mm3",
